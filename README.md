@@ -1,3 +1,7 @@
+
+> [!INFO]  
+> Added topic (forum threads) support
+
 # RSS to Telegram Bot
 
 A Python bot that monitors RSS feeds and sends notifications to a Telegram chat when new content is published. The bot checks feeds at regular intervals, keeps track of which items have already been sent, and groups notifications by feed source for better readability.
