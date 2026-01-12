@@ -185,7 +185,7 @@ async def main_async():
     
     if TELEGRAM_FORUM_ID:
         try:
-            TELEGRAM_FORUM_ID = int(TELEGRAM_FORUM_ID)
+            int(TELEGRAM_FORUM_ID)
         except ValueError:
             raise ValueError("TELEGRAM_FORUM_ID must be an integer")
 
