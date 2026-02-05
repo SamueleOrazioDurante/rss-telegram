@@ -1,13 +1,19 @@
 
-> [!INFO]  
-> Added topic (forum threads) support
+> [!NOTE] 
+> 1) Added topic (forum threads) support
+> 2) Added single/grouped messages choose
+> 3) Added clickable button instead of direct link for easier accessibility:
+>    - Using InlineKeyboard in single messages
+>    - Using Formatting in multiple messages
+> 4) Added a .env file for easier configuration
+> 5) Added my custom image to the docker-compose.yml instead of the original
+> 6) Removed logging
 
 # RSS to Telegram Bot
 
 A Python bot that monitors RSS feeds and sends notifications to a Telegram chat when new content is published. The bot checks feeds at regular intervals, keeps track of which items have already been sent, and groups notifications by feed source for better readability.
 
 [!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://buymeacoffee.com/balsamic9239)
-
 
 ## Features
 
@@ -21,6 +27,7 @@ A Python bot that monitors RSS feeds and sends notifications to a Telegram chat 
 ## How It Works
 
 The bot:
+
 1. Reads RSS feed URLs from a configuration file
 2. Periodically checks each feed for new content
 3. Compares entries against a history of previously sent items
@@ -40,23 +47,27 @@ The bot:
 ### Option 1: Local Installation
 
 1. Clone this repository:
+
    ```bash
    git clone https://github.com/daquino94/rss-telegram.git
    cd rss-telegram
    ```
 
 2. Install required dependencies:
+
    ```bash
    pip install feedparser python-telegram-bot==20.7 requests
    ```
 
 3. Create a data directory and feeds file:
+
    ```bash
    mkdir -p data
    echo "# Add your RSS feeds below, one per line" > data/feeds.txt
    ```
 
 4. Add your RSS feed URLs to `data/feeds.txt`:
+
    ```
    https://example.com/feed.xml
    https://anotherblog.com/rss
@@ -70,12 +81,14 @@ The bot:
 ### Option 2: Docker Installation (Local Build)
 
 1. Clone this repository:
+
    ```bash
    git clone https://github.com/daquino94/rss-telegram.git
    cd rss-telegram
    ```
 
 2. Create a data directory and feeds file:
+
    ```bash
    mkdir -p data
    echo "# Add your RSS feeds below, one per line" > data/feeds.txt
@@ -100,6 +113,7 @@ The bot:
 ### Option 3: Docker Hub Installation
 
 1. Create a directory for your data and configuration:
+
    ```bash
    mkdir -p rss-telegram/data
    cd rss-telegram
@@ -113,11 +127,13 @@ The bot:
 4. Update the environment variables in docker-compose.yml with your Telegram bot token and chat ID.
 
 5. Run the container:
+
    ```bash
    docker-compose up -d
    ```
 
    Or manually:
+
    ```bash
    docker run -d \
      --name rss-telegram \
@@ -134,14 +150,14 @@ The bot:
 
 The bot can be configured using environment variables:
 
-| Environment Variable | Description | Default |
-|---------------------|-------------|---------|
-| `TELEGRAM_BOT_TOKEN` | Your Telegram bot token | Required |
-| `TELEGRAM_CHAT_ID` | Your Telegram chat or channel ID | Required |
-| `DISABLE_NOTIFICATION` | Disable telegram notification | false | 
-| `INCLUDE_DESCRIPTION` | Include description in the message | false | 
-| `CHECK_INTERVAL` | Time in seconds between feed checks | 3600 (1 hour) |
-| `FEEDS_FILE` | Path to the file containing RSS feed URLs | /app/data/feeds.txt |
+| Environment Variable   | Description                               | Default             |
+| ---------------------- | ----------------------------------------- | ------------------- |
+| `TELEGRAM_BOT_TOKEN`   | Your Telegram bot token                   | Required            |
+| `TELEGRAM_CHAT_ID`     | Your Telegram chat or channel ID          | Required            |
+| `DISABLE_NOTIFICATION` | Disable telegram notification             | false               |
+| `INCLUDE_DESCRIPTION`  | Include description in the message        | false               |
+| `CHECK_INTERVAL`       | Time in seconds between feed checks       | 3600 (1 hour)       |
+| `FEEDS_FILE`           | Path to the file containing RSS feed URLs | /app/data/feeds.txt |
 
 ## Data Persistence
 

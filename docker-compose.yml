@@ -1,0 +1,9 @@
+services:
+  rss-telegram-bot:
+    image: ghcr.io/samueleoraziodurante/rss-telegram:latest
+    container_name: rss-telegram
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data

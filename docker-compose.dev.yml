@@ -1,0 +1,9 @@
+services:
+  rss-telegram-bot-dev:
+    build: .
+    container_name: rss-telegram-bot-dev
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data

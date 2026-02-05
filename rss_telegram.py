@@ -9,6 +9,7 @@ import requests
 import asyncio
 from telegram import Bot
 from telegram.constants import ParseMode
+from telegram import InlineKeyboardMarkup, InlineKeyboardButton
 import re
 import html
 
@@ -25,6 +26,8 @@ TELEGRAM_CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID')
 TELEGRAM_FORUM_ID = os.environ.get('TELEGRAM_FORUM_ID')
 CHECK_INTERVAL = int(os.environ.get('CHECK_INTERVAL', 3600))  # Default: 1 hour
 FEEDS_FILE = os.environ.get('FEEDS_FILE', '/app/data/feeds.txt')
+TELEGRAM_GROUPED_MESSAGES= os.environ.get('TELEGRAM_GROUPED_MESSAGES', 'true').lower() == 'true'  # Default: true
+TELEGRAM_MESSAGE_LINKS_BUTTON= os.environ.get('TELEGRAM_MESSAGE_LINKS_BUTTON', 'false').lower() == 'true'  # Default: false
 INCLUDE_DESCRIPTION = os.environ.get('INCLUDE_DESCRIPTION', 'false').lower() == 'true'  # Default: false
 DISABLE_NOTIFICATION = os.environ.get('DISABLE_NOTIFICATION', 'false').lower() == 'true'  # Default: false
 MAX_MESSAGE_LENGTH = 4096  # Maximum character limit for Telegram messages
@@ -73,7 +76,7 @@ def save_sent_items(sent_items):
     with open(HISTORY_FILE, 'w') as f:
         json.dump(sent_items, f)
 
-async def send_telegram_message(bot, chat_id, message, message_thread_id=None):
+async def send_telegram_message(bot, chat_id, message, message_thread_id=None, reply_markup=None):
     try:
         kwargs = {
             "chat_id": chat_id,
@@ -84,6 +87,9 @@ async def send_telegram_message(bot, chat_id, message, message_thread_id=None):
 
         if message_thread_id is not None:
             kwargs["message_thread_id"] = message_thread_id
+
+        if reply_markup is not None:
+            kwargs["reply_markup"] = reply_markup
 
         await bot.send_message(**kwargs)
         return True
@@ -113,7 +119,10 @@ async def send_grouped_messages(bot, messages_by_feed):
                     desc = desc[:147] + '...'
                 entry_text += f"  _{desc}_\n"
 
-            entry_text += f"\n  {entry['link']}\n\n"
+            if TELEGRAM_MESSAGE_LINKS_BUTTON:
+                entry_text += f"\n  [Open Link]({entry['link']})\n\n"
+            else:
+                entry_text += f"\n  {entry['link']}\n\n"
 
             if len(header) + len(entries_text) + len(entry_text) > MAX_MESSAGE_LENGTH:
                 await send_telegram_message(bot, TELEGRAM_CHAT_ID, header + entries_text, TELEGRAM_FORUM_ID)
@@ -125,6 +134,33 @@ async def send_grouped_messages(bot, messages_by_feed):
             await send_telegram_message(bot, TELEGRAM_CHAT_ID, header + entries_text, TELEGRAM_FORUM_ID)
 
         await asyncio.sleep(1)
+
+    return True
+
+async def send_single_messages(bot, messages_by_feed):
+    """Send one message per item."""
+    if not messages_by_feed:
+        logger.info("No new content to notify")
+        return True
+
+    for feed_title, entries in messages_by_feed.items():
+        for entry in entries:
+            message = f"📢 *New content from {feed_title}*\n\n*{entry['title']}*\n"
+
+            if INCLUDE_DESCRIPTION and entry.get('description'):
+                desc = strip_html(entry['description'])
+                if len(desc) > 150:
+                    desc = desc[:147] + '...'
+                message += f"  _{desc}_\n"
+
+            reply_markup = None
+            if TELEGRAM_MESSAGE_LINKS_BUTTON:
+                reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("Open Link", url=entry['link'])]])
+            else:
+                message += f"\n{entry['link']}"
+
+            await send_telegram_message(bot, TELEGRAM_CHAT_ID, message, TELEGRAM_FORUM_ID, reply_markup)
+            await asyncio.sleep(1)
 
     return True
 
@@ -172,7 +208,10 @@ async def check_feeds(bot):
         except Exception as e:
             logger.error(f"Error checking feed {feed_url}: {e}")
 
-    await send_grouped_messages(bot, messages_by_feed)
+    if TELEGRAM_GROUPED_MESSAGES:
+        await send_grouped_messages(bot, messages_by_feed)
+    else:
+        await send_single_messages(bot, messages_by_feed)
     return sent_items
 
 async def main_async():
