@@ -35,6 +35,67 @@ MAX_MESSAGE_LENGTH = 4096  # Maximum character limit for Telegram messages
 # File to store already sent articles
 HISTORY_FILE = "/app/data/sent_items.json"
 
+# File to cache anime images from Anilist
+IMAGE_CACHE_FILE = "/app/data/image_cache.json"
+
+def clean_title(title):
+    # Rimuovi tag tra parentesi quadre e tonde
+    cleaned = re.sub(r'\[.*?\]', '', title)
+    cleaned = re.sub(r'\(.*?\)', '', cleaned)
+    # Rimuovi suffissi comuni come " - 03" o " Episode 03"
+    cleaned = re.sub(r'\s*-\s*\d+\s*$', '', cleaned)  # Modificato per gestire spazi finali
+    cleaned = re.sub(r'\s*Episode\s*\d+$', '', cleaned, flags=re.IGNORECASE)
+    # Pulisci spazi extra
+    return ' '.join(cleaned.split()).strip()
+
+
+def load_image_cache():
+    """Load the image cache from file."""
+    try:
+        with open(IMAGE_CACHE_FILE, 'r') as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+def save_image_cache(cache):
+    """Save the image cache to file."""
+    with open(IMAGE_CACHE_FILE, 'w') as f:
+        json.dump(cache, f)
+
+def get_anime_image_from_anilist(title):
+    cache = load_image_cache()
+    cleaned_title = clean_title(title)
+    
+    if cleaned_title in cache:
+        return cache[cleaned_title]
+    
+    try:
+        url = "https://graphql.anilist.co"
+        query = """
+        query Media($search: String) {
+          Page {
+            media(search: $search) {
+              coverImage {
+                extraLarge
+              }
+            }
+          }
+        }
+        """
+        variables = {"search": cleaned_title}
+        response = requests.post(url, json={"query": query, "variables": variables})
+        response.raise_for_status()
+        data = response.json()
+        
+        if data['data']['Page']['media']:
+            image_url = data['data']['Page']['media'][0]['coverImage']['extraLarge']
+            cache[cleaned_title] = image_url
+            save_image_cache(cache)
+            return image_url
+        
+    except Exception as e:
+        logger.error(f"Error while retrieving image from Anilist: {e}")
+    return None
 
 def strip_html(html_content: str) -> str:
     """Convert HTML to plain text by removing tags and unescaping entities."""
@@ -95,6 +156,28 @@ async def send_telegram_message(bot, chat_id, message, message_thread_id=None, r
         return True
     except Exception as e:
         logger.error(f"Error sending notification: {e}")
+        return False
+
+async def send_photo_message(bot, chat_id, photo_url, caption, message_thread_id=None, reply_markup=None):
+    try:
+        kwargs = {
+            "chat_id": chat_id,
+            "photo": photo_url,
+            "caption": caption,
+            "parse_mode": ParseMode.MARKDOWN,
+            "disable_notification": DISABLE_NOTIFICATION
+        }
+
+        if message_thread_id is not None:
+            kwargs["message_thread_id"] = message_thread_id
+
+        if reply_markup is not None:
+            kwargs["reply_markup"] = reply_markup
+
+        await bot.send_photo(**kwargs)
+        return True
+    except Exception as e:
+        logger.error(f"Error sending photo: {e}")
         return False
 
 async def send_grouped_messages(bot, messages_by_feed):
@@ -159,7 +242,17 @@ async def send_single_messages(bot, messages_by_feed):
             else:
                 message += f"\n{entry['link']}"
 
-            await send_telegram_message(bot, TELEGRAM_CHAT_ID, message, TELEGRAM_FORUM_ID, reply_markup)
+            # Use AniList API to get image for anime entries
+            image_url = entry.get('image_url')
+
+            if image_url:
+                success = await send_photo_message(bot, TELEGRAM_CHAT_ID, image_url, message, TELEGRAM_FORUM_ID, reply_markup)
+                if not success:
+                    # Fallback with text message if photo fails
+                    await send_telegram_message(bot, TELEGRAM_CHAT_ID, message, TELEGRAM_FORUM_ID, reply_markup)
+            else:
+                await send_telegram_message(bot, TELEGRAM_CHAT_ID, message, TELEGRAM_FORUM_ID, reply_markup)
+            
             await asyncio.sleep(1)
 
     return True
@@ -203,7 +296,9 @@ async def check_feeds(bot):
                 if INCLUDE_DESCRIPTION:
                     description = getattr(entry, 'description', '') or getattr(entry, 'summary', '')
 
-                messages_by_feed[feed_title].append({'title': title, 'link': link, 'description': description})
+                image_url = get_anime_image_from_anilist(title)
+
+                messages_by_feed[feed_title].append({'title': title, 'link': link, 'description': description, 'image_url': image_url})
                 sent_items[feed_url].append(entry_id)
         except Exception as e:
             logger.error(f"Error checking feed {feed_url}: {e}")

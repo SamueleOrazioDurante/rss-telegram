@@ -1,6 +1,6 @@
 services:
   rss-telegram-bot:
-    image: ghcr.io/samueleoraziodurante/rss-telegram:latest
+    image: ghcr.io/samueleoraziodurante/rss-telegram:erai-anime
     container_name: rss-telegram
     restart: unless-stopped
     env_file:

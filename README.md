@@ -1,5 +1,14 @@
 
 > [!NOTE] 
+> 1) This branch supports image search from anime name using anilist open api, tested only with erai anime, only supports single message and NOT grouped
+
+> [!WARNING]
+> 1) Image search is limited at 90 search per minutes. No limit is applyed client side so if a large .xml is initialized or a batch of more than 90 different animes are sent in a single short time some images may not load and a simple text message will be sent instead.
+> 2) For this problem a cache system has been implemented that caches permantently images url in a json inside /data so no request is done for already queried anime.
+> 3) I will NOT address this issue, if you have a big batch of anime just start it, when the first 429 error appears just stop the container, remove the sent_items.json and repeat till all images are cached.
+> 4) No ttl added, so cache is permanent. If an image changes on anilist side it will stay the same on your side, only way to let it update is manually delete the entry in the image_cache.json.
+
+> [!NOTE] 
 > 1) Added topic (forum threads) support
 > 2) Added single/grouped messages choose
 > 3) Added clickable button instead of direct link for easier accessibility:
